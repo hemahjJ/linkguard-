@@ -1,0 +1,220 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AegisLoom Security Lab — Training Backend API",
+    "version": "1.0.0",
+    "description": "Authorized phishing awareness training simulation backend. Strictly zero credential harvesting, tracking pixels, or data exfiltration.",
+    "contact": {
+      "name": "AegisLoom Security Lab SOC Team",
+      "email": "security@aegisloom-training.internal"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "API v1 Endpoint"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "AdminBearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT Access Token for authorized training administrators"
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "System Health & Safety Policy Diagnostic",
+        "responses": {
+          "200": { "description": "Service operational and safety policy active" }
+        }
+      }
+    },
+    "/simulation/login-intercept": {
+      "post": {
+        "summary": "Simulated Login Interception (Zero-Credential Trap)",
+        "description": "Any form submission to this endpoint is intercepted, form fields are discarded without inspection, and a fixed educational response is returned.",
+        "responses": {
+          "200": {
+            "description": "Educational risk explanation returned; credentials discarded"
+          }
+        }
+      }
+    },
+    "/simulation/report-phish": {
+      "post": {
+        "summary": "Report Simulated Phishing Attempt",
+        "description": "Simulates employee clicking corporate Report Phish add-in button and triggers SOC quarantine feedback.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scenarioId": { "type": "string" },
+                  "anonymousLearnerId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Phish report logged and positive reinforcement returned" }
+        }
+      }
+    },
+    "/simulation/risk-score-guide": {
+      "get": {
+        "summary": "Live Risk-Score & Red Flag Guidance",
+        "responses": {
+          "200": { "description": "Risk thresholds and red flag checklist" }
+        }
+      }
+    },
+    "/training/modules": {
+      "get": {
+        "summary": "List Active Training Modules",
+        "responses": {
+          "200": { "description": "Array of active training modules" }
+        }
+      }
+    },
+    "/training/modules/{id}": {
+      "get": {
+        "summary": "Get Module Details & Associated Scenarios",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Module metadata and published scenarios" },
+          "404": { "description": "Module not found" }
+        }
+      }
+    },
+    "/training/quizzes/{moduleId}": {
+      "get": {
+        "summary": "Get Safe Quiz Questions for Module",
+        "description": "Returns quiz questions with answer options (is_correct is masked to prevent client-side inspection).",
+        "parameters": [
+          { "name": "moduleId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Questions array" }
+        }
+      }
+    },
+    "/training/quizzes/{moduleId}/evaluate": {
+      "post": {
+        "summary": "Evaluate Quiz Answers & Calculate Threat Score",
+        "parameters": [
+          { "name": "moduleId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["anonymousLearnerId", "answers"],
+                "properties": {
+                  "anonymousLearnerId": { "type": "string" },
+                  "answers": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Score percentage, educational rationale per question, and certificate link if passed" }
+        }
+      }
+    },
+    "/training/certificate/{completionId}": {
+      "get": {
+        "summary": "Download Training Completion Certificate",
+        "parameters": [
+          { "name": "completionId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "format", "in": "query", "schema": { "type": "string", "enum": ["json", "svg"], "default": "json" } }
+        ],
+        "responses": {
+          "200": { "description": "Certificate data or vector SVG" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Administrator Login",
+        "description": "Authenticates training administrator with bcrypt password verification and optional MFA step-up.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": { "type": "string" },
+                  "password": { "type": "string" },
+                  "mfaCode": { "type": "string", "minLength": 6, "maxLength": 6 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "JWT tokens issued or MFA step required" },
+          "401": { "description": "Invalid credentials" },
+          "423": { "description": "Account locked due to 5+ failed attempts" }
+        }
+      }
+    },
+    "/admin/scenarios": {
+      "post": {
+        "summary": "Create Fictional Phishing Scenario (Admin)",
+        "security": [{ "AdminBearerAuth": [] }],
+        "responses": {
+          "201": { "description": "Scenario created" },
+          "403": { "description": "Insufficient role (requires training_manager or super_admin)" }
+        }
+      }
+    },
+    "/admin/analytics/completion": {
+      "get": {
+        "summary": "Review Aggregate Training Metrics",
+        "security": [{ "AdminBearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Total unique learners, completion rates, and average scores" }
+        }
+      }
+    },
+    "/admin/analytics/export": {
+      "get": {
+        "summary": "Export Anonymized Training Compliance Report",
+        "security": [{ "AdminBearerAuth": [] }],
+        "parameters": [
+          { "name": "format", "in": "query", "schema": { "type": "string", "enum": ["json", "csv"], "default": "json" } },
+          { "name": "moduleId", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "CSV or JSON export with strictly anonymous identifiers" }
+        }
+      }
+    },
+    "/admin/audit-logs": {
+      "get": {
+        "summary": "Review Administrator Audit Trail (Super Admin)",
+        "security": [{ "AdminBearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Audit events list" }
+        }
+      }
+    }
+  }
+}

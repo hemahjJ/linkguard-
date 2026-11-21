@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Rain — ASCII Art Engine (21st.dev Re-creation)</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+  <!-- Top App Navigation Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-group">
+        <svg class="engine-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="8" fill="#00180c"/>
+          <rect x="1" y="1" width="30" height="30" rx="7" stroke="#00ff66" stroke-width="1.5" stroke-opacity="0.4"/>
+          <path d="M7 11L12 16L7 21" stroke="#00ff66" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 21H24" stroke="#00ff66" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="21" cy="11" r="2" fill="#00ff66" filter="drop-shadow(0 0 4px #00ff66)"/>
+        </svg>
+        <div class="brand-text">
+          <h1>CODE RAIN <span class="tag-version">ASCII 2.0</span></h1>
+          <p class="sub-label">21st.dev Raster Pipeline Re-creation</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Action Controls -->
+    <div class="header-actions">
+      <div class="playback-controls">
+        <button id="btnTogglePlay" class="btn-ctrl active" title="Pause / Resume Animation">
+          <span class="icon" id="playIcon">⏸</span>
+          <span class="label">Play</span>
+        </button>
+        <button id="btnResetParams" class="btn-ctrl" title="Reset to Original Code Rain Parameters">
+          <span class="icon">↺</span>
+          <span class="label">Reset JSON</span>
+        </button>
+      </div>
+
+      <div class="file-controls">
+        <label for="imageUploadInput" class="btn-ctrl upload-btn" title="Load custom photo or image">
+          <span class="icon">📁</span>
+          <span class="label">Upload Image</span>
+        </label>
+        <input type="file" id="imageUploadInput" accept="image/*" style="display:none;">
+
+        <button id="btnSwitchPresetImg" class="btn-ctrl" title="Cycle procedural source artwork">
+          <span class="icon">🖼️</span>
+          <span class="label" id="presetImgLabel">Portrait: Cyber Ref-006</span>
+        </button>
+      </div>
+
+      <div class="export-controls">
+        <button id="btnOpenJsonModal" class="btn-ctrl json-btn" title="View / Edit Raw Parameters JSON">
+          <span class="icon">{ }</span>
+          <span class="label">JSON Config</span>
+        </button>
+        <button id="btnExportPng" class="btn-ctrl primary-btn" title="Save snapshot as high-res PNG">
+          <span class="icon">📸</span>
+          <span class="label">Export PNG</span>
+        </button>
+      </div>
+
+      <button id="btnToggleSidebar" class="btn-ctrl sidebar-toggle-btn" title="Toggle Parameter Inspector">
+        <span class="icon">⚙️</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Canvas Workspace & Parameters Inspector Sidebar -->
+  <main class="workspace-layout">
+    <!-- Viewport / Canvas Container -->
+    <div class="canvas-viewport" id="viewportContainer">
+      <div class="viewport-hud">
+        <div class="hud-chip">
+          <span class="hud-dot"></span>
+          <span id="hudFps">60 FPS</span>
+        </div>
+        <div class="hud-chip">
+          <span class="hud-label">MODE:</span>
+          <span id="hudMode" class="hud-val">characters (binary)</span>
+        </div>
+        <div class="hud-chip">
+          <span class="hud-label">GRID:</span>
+          <span id="hudGrid" class="hud-val">71 × 53 (14px)</span>
+        </div>
+        <div class="hud-chip">
+          <span class="hud-label">ANIM:</span>
+          <span id="hudAnim" class="hud-val">flicker (100%)</span>
+        </div>
+      </div>
+
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="asciiCanvas"></canvas>
+      </div>
+
+      <div class="viewport-hint">
+        <span>Tip: Drag & drop any image directly onto the canvas • Mask tool available in sidebar</span>
+      </div>
+    </div>
+
+    <!-- Collapsible Parameter Inspector Panel -->
+    <aside class="parameters-sidebar" id="sidebarPanel">
+      <div class="sidebar-header">
+        <h2>Parameters Inspector</h2>
+        <span class="param-count-badge">Live Pipeline</span>
+      </div>
+
+      <div class="sidebar-scroll-area">
+        <!-- 1. RENDER MODE & GRID -->
+        <section class="param-accordion active" data-section="render">
+          <div class="accordion-header">
+            <span class="acc-title"><span class="acc-icon">🔲</span> Render Mode & Grid</span>
+            <span class="acc-chevron">▾</span>
+          </div>
+          <div class="accordion-body">
+            <div class="ctrl-group">
+              <label for="selRenderMode">Render Mode (23 Modes)</label>
+              <select id="selRenderMode" class="styled-select">
+                <option value="characters" selected>characters (Glyphs from CharSet)</option>
+                <option value="matrix">matrix (Self-Animated Code Rain)</option>
+                <option value="hexdump">hexdump (0-9, A-F Byte Stream)</option>
+                <option value="braille">braille (2×4 Dot Braille)</option>
+                <option value="halfblocks">halfblocks (Double Vertical Detail)</option>
+                <option value="dither">dither (Bayer Matrix Dithering)</option>
+                <option value="mosaic">mosaic (Square Tiles)</option>
+                <option value="pixel">pixel (Sharp Raster Pixels)</option>
+                <option value="dots">dots (Luminance Circles)</option>
+                <option value="cross">cross (+ Crosshairs)</option>
+                <option value="diamond">diamond (Rhombus Grid)</option>
+                <option value="voxel">voxel (Isometric 3D Cubes)</option>
+                <option value="lego">lego (Studded Bricks)</option>
+                <option value="mixed">mixed (Multi-Primitive)</option>
+                <option value="lines">lines (Luminance Scanlines)</option>
+                <option value="diagonal">diagonal (45° Hatching)</option>
+                <option value="disco">disco (Shimmering Colored Orbs)</option>
+                <option value="rings">rings (Concentric Rings)</option>
+                <option value="hearts">hearts (ASCII Hearts ♥)</option>
+                <option value="stars">stars (4-Point Stars ★)</option>
+                <option value="hexagons">hexagons (Honeycomb Grid)</option>
+                <option value="triangles">triangles (Low-Poly Triangles)</option>
+                <option value="bubbles">bubbles (Glossy Highlight Spheres)</option>
+                <option value="hatch">hatch (Pencil Cross-Hatch)</option>
+                <option value="contour">contour (Topographic Iso-lines)</option>
+              </select>
+            </div>
+
+            <div class="ctrl-group" id="groupCharSet">
+              <label for="selCharSet">Character Set</label>
+              <select id="selCharSet" class="styled-select">
+                <option value="binary" selected>binary (0, 1)</option>
+                <option value="matrix">matrix (Katakana & Numerals)</option>
+                <option value="standard">standard ( .:-=+*#%@)</option>
+                <option value="blocks">blocks ( ░▒▓█)</option>
+                <option value="dense">dense (68 ASCII glyphs)</option>
+                <option value="minimal">minimal ( .oO@)</option>
+                <option value="hex">hex (0123456789ABCDEF)</option>
+                <option value="custom">custom (Type below)</option>
+              </select>
+            </div>
+
+            <div class="ctrl-group" id="groupCustomChars" style="display:none;">
+              <label for="inputCustomChars">Custom Characters</label>
+              <input type="text" id="inputCustomChars" class="styled-input" placeholder="e.g. 01@#$*">
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeCellSize">Cell Size (px)</label>
+                <span class="slider-val" id="valCellSize">14</span>
+              </div>
+              <input type="range" id="rangeCellSize" min="4" max="40" step="1" value="14">
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeCoverage">Coverage (%)</label>
+                <span class="slider-val" id="valCoverage">96</span>
+              </div>
+              <input type="range" id="rangeCoverage" min="0" max="100" step="1" value="96">
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeEdgeEmphasis">Edge Emphasis</label>
+                <span class="slider-val" id="valEdgeEmphasis">40</span>
+              </div>
+              <input type="range" id="rangeEdgeEmphasis" min="0" max="100" step="1" value="40">
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeDensity">Density Offset</label>
+                <span class="slider-val" id="valDensity">0</span>
+              </div>
+              <input type="range" id="rangeDensity" min="-50" max="50" step="1" value="0">
+            </div>
+
+            <div class="ctrl-toggle-row">
+              <label class="toggle-switch">
+                <input type="checkbox" id="chkInvert">
+                <span class="toggle-track"></span>
+              </label>
+              <span class="toggle-label">Invert Luminance</span>
+            </div>
+
+            <div class="ctrl-group">
+              <label for="selStyleBlend">Style Blend Mode</label>
+              <select id="selStyleBlend" class="styled-select">
+                <option value="source-over" selected>source-over (Default)</option>
+                <option value="screen">screen (Additive Light)</option>
+                <option value="lighter">lighter (Linear Dodge)</option>
+                <option value="overlay">overlay</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. BACKGROUND LAYER -->
+        <section class="param-accordion active" data-section="bg">
+          <div class="accordion-header">
+            <span class="acc-title"><span class="acc-icon">🖼️</span> Background Layer</span>
+            <span class="acc-chevron">▾</span>
+          </div>
+          <div class="accordion-body">
+            <div class="ctrl-group">
+              <label for="selBgMode">Background Mode</label>
+              <select id="selBgMode" class="styled-select">
+                <option value="solid" selected>solid (Clean Dark Background)</option>
+                <option value="blurred">blurred (Blurred Original Photo)</option>
+                <option value="photo">photo (Original Sharp Photo)</option>
+                <option value="none">none (Transparent / Black)</option>
+              </select>
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeBgOpacity">Background Opacity (%)</label>
+                <span class="slider-val" id="valBgOpacity">90</span>
+              </div>
+              <input type="range" id="rangeBgOpacity" min="0" max="100" step="1" value="90">
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeBgBlur">Background Blur (px)</label>
+                <span class="slider-val" id="valBgBlur">12</span>
+              </div>
+              <input type="range" id="rangeBgBlur" min="0" max="60" step="1" value="12">
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. COLOR & TINT ADJUSTMENTS -->
+        <section class="param-accordion active" data-section="color">
+          <div class="accordion-header">
+            <span class="acc-title"><span class="acc-icon">🎨</span> Color & Tint Pipeline</span>
+            <span class="acc-chevron">▾</span>
+          </div>
+          <div class="accordion-body">
+            <div class="color-picker-row">
+              <label for="colorTint">Tint Color</label>
+              <div class="color-input-wrapper">
+                <input type="color" id="colorTint" value="#00ff66">
+                <input type="text" id="colorTintHex" class="styled-input hex-input" value="#00ff66">
+              </div>
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeTintOpacity">Tint Opacity (%)</label>
+                <span class="slider-val" id="valTintOpacity">45</span>
+              </div>
+              <input type="range" id="rangeTintOpacity" min="0" max="100" step="1" value="45">
+            </div>
+
+            <div class="ctrl-group">
+              <label for="selOverlayBlend">Overlay Blend Mode</label>
+              <select id="selOverlayBlend" class="styled-select">
+                <option value="overlay" selected>overlay (Vibrant Matrix)</option>
+                <option value="source-over">source-over (Flat Tint)</option>
+                <option value="multiply">multiply (Dark Shadow)</option>
+                <option value="screen">screen (Highlight)</option>
+                <option value="color">color</option>
+                <option value="hard-light">hard-light</option>
+              </select>
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeContrast">Contrast (%)</label>
+                <span class="slider-val" id="valContrast">115</span>
+              </div>
+              <input type="range" id="rangeContrast" min="50" max="250" step="1" value="115">
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeBrightness">Brightness</label>
+                <span class="slider-val" id="valBrightness">0</span>
+              </div>
+              <input type="range" id="rangeBrightness" min="-100" max="100" step="1" value="0">
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeSaturation">Saturation (%)</label>
+                <span class="slider-val" id="valSaturation">100</span>
+              </div>
+              <input type="range" id="rangeSaturation" min="0" max="200" step="1" value="100">
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeGrayscale">Grayscale (%)</label>
+                <span class="slider-val" id="valGrayscale">0</span>
+              </div>
+              <input type="range" id="rangeGrayscale" min="0" max="100" step="1" value="0">
+            </div>
+
+            <div class="ctrl-group">
+              <label for="selBlurType">Lens / Optical Blur</label>
+              <select id="selBlurType" class="styled-select">
+                <option value="off" selected>off</option>
+                <option value="gaussian">gaussian (Global Blur)</option>
+                <option value="tilt">tilt (Tilt-Shift Focus)</option>
+                <option value="radial">radial (Lens Focus)</option>
+                <option value="progressive">progressive</option>
+              </select>
+            </div>
+
+            <div class="ctrl-slider-group" id="groupBlurAmount" style="display:none;">
+              <div class="slider-header">
+                <label for="rangeBlurAmount">Blur Amount (px)</label>
+                <span class="slider-val" id="valBlurAmount">35</span>
+              </div>
+              <input type="range" id="rangeBlurAmount" min="1" max="80" step="1" value="35">
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. POST-EFFECTS (PFX) -->
+        <section class="param-accordion active" data-section="pfx">
+          <div class="accordion-header">
+            <span class="acc-title"><span class="acc-icon">✨</span> Post-Effects (PFX Layer)</span>
+            <span class="acc-chevron">▾</span>
+          </div>
+          <div class="accordion-body">
+            <!-- Scanlines -->
+            <div class="pfx-card">
+              <div class="pfx-toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="chkPfxScanlines" checked>
+                  <span class="toggle-track"></span>
+                </label>
+                <span class="pfx-name">Scanlines (CRT Raster)</span>
+                <span class="slider-val" id="valPfxScanlines">28</span>
+              </div>
+              <input type="range" id="rangePfxScanlines" min="0" max="100" step="1" value="28">
+            </div>
+
+            <!-- Vignette -->
+            <div class="pfx-card">
+              <div class="pfx-toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="chkPfxVignette" checked>
+                  <span class="toggle-track"></span>
+                </label>
+                <span class="pfx-name">Vignette (Corner Falloff)</span>
+                <span class="slider-val" id="valPfxVignette">38</span>
+              </div>
+              <input type="range" id="rangePfxVignette" min="0" max="100" step="1" value="38">
+            </div>
+
+            <!-- Bloom -->
+            <div class="pfx-card">
+              <div class="pfx-toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="chkPfxBloom" checked>
+                  <span class="toggle-track"></span>
+                </label>
+                <span class="pfx-name">Bloom (Phosphor Glow)</span>
+                <span class="slider-val" id="valPfxBloom">25</span>
+              </div>
+              <input type="range" id="rangePfxBloom" min="0" max="100" step="1" value="25">
+            </div>
+
+            <!-- Film Grain -->
+            <div class="pfx-card">
+              <div class="pfx-toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="chkPfxFilmGrain" checked>
+                  <span class="toggle-track"></span>
+                </label>
+                <span class="pfx-name">Film Grain (Noise)</span>
+                <span class="slider-val" id="valPfxFilmGrain">40</span>
+              </div>
+              <input type="range" id="rangePfxFilmGrain" min="0" max="100" step="1" value="40">
+            </div>
+
+            <!-- Glitch -->
+            <div class="pfx-card">
+              <div class="pfx-toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="chkPfxGlitch" checked>
+                  <span class="toggle-track"></span>
+                </label>
+                <span class="pfx-name">Glitch (Signal Jitter)</span>
+                <span class="slider-val" id="valPfxGlitch">20</span>
+              </div>
+              <input type="range" id="rangePfxGlitch" min="0" max="100" step="1" value="20">
+            </div>
+
+            <!-- Chromatic Aberration -->
+            <div class="pfx-card">
+              <div class="pfx-toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="chkPfxChromatic">
+                  <span class="toggle-track"></span>
+                </label>
+                <span class="pfx-name">Chromatic Aberration (RGB Split)</span>
+                <span class="slider-val" id="valPfxChromatic">15</span>
+              </div>
+              <input type="range" id="rangePfxChromatic" min="0" max="100" step="1" value="15">
+            </div>
+
+            <!-- Pixelate -->
+            <div class="pfx-card">
+              <div class="pfx-toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="chkPfxPixelate">
+                  <span class="toggle-track"></span>
+                </label>
+                <span class="pfx-name">Pixelate Mosaic</span>
+                <span class="slider-val" id="valPfxPixelate">15</span>
+              </div>
+              <input type="range" id="rangePfxPixelate" min="0" max="100" step="1" value="15">
+            </div>
+
+            <!-- Halftone -->
+            <div class="pfx-card">
+              <div class="pfx-toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="chkPfxHalftone">
+                  <span class="toggle-track"></span>
+                </label>
+                <span class="pfx-name">Halftone Screen</span>
+                <span class="slider-val" id="valPfxHalftone">20</span>
+              </div>
+              <input type="range" id="rangePfxHalftone" min="0" max="100" step="1" value="20">
+            </div>
+
+            <!-- Film Dust -->
+            <div class="pfx-card">
+              <div class="pfx-toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="chkPfxFilmDust">
+                  <span class="toggle-track"></span>
+                </label>
+                <span class="pfx-name">Film Dust & Scratches</span>
+                <span class="slider-val" id="valPfxFilmDust">20</span>
+              </div>
+              <input type="range" id="rangePfxFilmDust" min="0" max="100" step="1" value="20">
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. ANIMATION ENGINE -->
+        <section class="param-accordion active" data-section="anim">
+          <div class="accordion-header">
+            <span class="acc-title"><span class="acc-icon">⚡</span> Animation Engine</span>
+            <span class="acc-chevron">▾</span>
+          </div>
+          <div class="accordion-body">
+            <div class="ctrl-toggle-row">
+              <label class="toggle-switch">
+                <input type="checkbox" id="chkAnimated" checked>
+                <span class="toggle-track"></span>
+              </label>
+              <span class="toggle-label">Enable Live Motion</span>
+            </div>
+
+            <div class="ctrl-group">
+              <label for="selAnimStyle">Animation Style</label>
+              <select id="selAnimStyle" class="styled-select">
+                <option value="flicker" selected>flicker (Terminal Glyph Shimmer)</option>
+                <option value="wave">wave (Sine Wave Propagation)</option>
+                <option value="pulse">pulse (Breathing Intensity)</option>
+                <option value="shimmer">shimmer (High-Frequency Sparkle)</option>
+                <option value="ripple">ripple (Concentric Fluid Rings)</option>
+              </select>
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeAnimSpeed">Motion Speed</label>
+                <span class="slider-val" id="valAnimSpeed">100</span>
+              </div>
+              <input type="range" id="rangeAnimSpeed" min="0" max="200" step="1" value="100">
+            </div>
+
+            <div class="ctrl-slider-group">
+              <div class="slider-header">
+                <label for="rangeAnimIntensity">Motion Intensity</label>
+                <span class="slider-val" id="valAnimIntensity">60</span>
+              </div>
+              <input type="range" id="rangeAnimIntensity" min="0" max="100" step="1" value="60">
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. GLOW LIGHTS & REVEAL MASK -->
+        <section class="param-accordion" data-section="extras">
+          <div class="accordion-header">
+            <span class="acc-title"><span class="acc-icon">🔦</span> Glow Lights & Reveal Mask</span>
+            <span class="acc-chevron">▾</span>
+          </div>
+          <div class="accordion-body">
+            <!-- Glow Lights -->
+            <div class="ctrl-toggle-row">
+              <label class="toggle-switch">
+                <input type="checkbox" id="chkLightsEnabled">
+                <span class="toggle-track"></span>
+              </label>
+              <span class="toggle-label">Glow Lights (Interactive Points)</span>
+            </div>
+            <p class="field-hint">Click on canvas when enabled to place luminous phosphor glow points.</p>
+
+            <hr class="section-divider">
+
+            <!-- Reveal Mask -->
+            <div class="ctrl-toggle-row">
+              <label class="toggle-switch">
+                <input type="checkbox" id="chkMaskEnabled">
+                <span class="toggle-track"></span>
+              </label>
+              <span class="toggle-label">Reveal Mask (Scratch to Photo)</span>
+            </div>
+
+            <div class="mask-brush-controls" id="maskBrushControls" style="display:none;">
+              <div class="ctrl-slider-group">
+                <div class="slider-header">
+                  <label for="rangeBrushSize">Brush Size (px)</label>
+                  <span class="slider-val" id="valBrushSize">30</span>
+                </div>
+                <input type="range" id="rangeBrushSize" min="10" max="100" step="2" value="30">
+              </div>
+
+              <div class="ctrl-toggle-row">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="chkMaskInvert">
+                  <span class="toggle-track"></span>
+                </label>
+                <span class="toggle-label">Invert Reveal Mask</span>
+              </div>
+
+              <button id="btnClearMask" class="btn-ctrl secondary-btn" style="width:100%; justify-content:center; margin-top:8px;">
+                Clear Reveal Mask
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <!-- JSON Configuration Editor Modal -->
+  <div class="modal-overlay" id="jsonModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h3>Parameters JSON Config</h3>
+          <span class="json-chip">21st.dev Specification</span>
+        </div>
+        <button class="modal-close-btn" id="btnCloseJsonModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <textarea id="jsonTextarea" class="json-code-editor" spellcheck="false"></textarea>
+      </div>
+      <div class="modal-footer">
+        <span class="modal-status" id="jsonModalStatus">Edit JSON values and click Apply to update live.</span>
+        <div class="modal-actions">
+          <button id="btnCopyJson" class="btn-ctrl secondary-btn">Copy JSON</button>
+          <button id="btnApplyJson" class="btn-ctrl primary-btn">Apply to Canvas</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden offscreen processing scratch canvases -->
+  <canvas id="offscreenSource" style="display:none;"></canvas>
+  <canvas id="offscreenBlur" style="display:none;"></canvas>
+  <canvas id="offscreenMask" style="display:none;"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
